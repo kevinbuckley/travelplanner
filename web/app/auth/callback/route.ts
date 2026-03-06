@@ -7,12 +7,13 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/app";
 
-  if (code) {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (code && supabaseUrl && supabaseKey) {
+    try {
+      const cookieStore = await cookies();
+      const supabase = createServerClient(supabaseUrl, supabaseKey, {
         cookies: {
           getAll() {
             return cookieStore.getAll();
@@ -24,15 +25,16 @@ export async function GET(request: Request) {
             );
           },
         },
+      });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) {
+        return NextResponse.redirect(`${origin}${next}`);
       }
-    );
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+    } catch {
+      // Fall through to home redirect
     }
   }
 
-  // On error, redirect to home
+  // No code, Supabase not configured, or exchange failed → home
   return NextResponse.redirect(`${origin}/`);
 }

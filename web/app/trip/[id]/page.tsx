@@ -13,19 +13,18 @@ interface Props {
 }
 
 function getServerSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return { title: "TripWit — Trip" };
-  }
+  const supabase = getServerSupabase();
+  if (!supabase) return { title: "TripWit — Trip" };
   const { id } = await params;
   try {
-    const { data } = await getServerSupabase()
+    const { data } = await supabase
       .from("trips")
       .select("name, destination")
       .eq("id", id)
@@ -57,7 +56,9 @@ const BOOKING_TYPE_LABELS: Record<string, string> = {
 
 export default async function PublicTripPage({ params }: Props) {
   const { id } = await params;
-  const { data } = await getServerSupabase()
+  const supabase = getServerSupabase();
+  if (!supabase) notFound();
+  const { data } = await supabase
     .from("trips")
     .select("*")
     .eq("id", id)

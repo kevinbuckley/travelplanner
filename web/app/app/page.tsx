@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import TripsSidebar from "@/components/layout/TripsSidebar";
@@ -12,17 +11,13 @@ import type { Trip, Stop } from "@/lib/types";
 
 export default function AppPage() {
   const { user, loading } = useAuth();
-  const router = useRouter();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const [tripsLoading, setTripsLoading] = useState(true);
 
-  // Redirect to landing if not logged in
-  useEffect(() => {
-    if (!loading && !user) router.replace("/");
-  }, [loading, user, router]);
+  // No redirect — unauthenticated users see the sign-in screen below
 
   // Load trips
   useEffect(() => {
@@ -76,7 +71,7 @@ export default function AppPage() {
     await updateTrip(selectedTripId, changes);
   }, [selectedTripId]);
 
-  if (loading || tripsLoading) {
+  if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-slate-400 text-sm">
         Loading…
@@ -84,7 +79,31 @@ export default function AppPage() {
     );
   }
 
-  if (!user) return null;
+  // Not signed in — show a proper sign-in screen (fixes redirect loop from landing page)
+  if (!user) {
+    return (
+      <div className="h-screen flex flex-col">
+        <Header showAds={false} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
+          <div className="text-5xl">✈️</div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-800 mb-2">Welcome to TripWit</h1>
+            <p className="text-slate-500 text-sm max-w-xs">
+              Sign in with Google to start planning your trips and access them from any device.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (tripsLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-slate-400 text-sm">
+        Loading trips…
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
