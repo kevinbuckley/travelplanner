@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, X, MapPin } from "lucide-react";
-import type { Stop, StopCategory } from "@/lib/types";
+import { Search, X, MapPin, Star, Plus, Trash2, ExternalLink } from "lucide-react";
+import type { Stop, StopCategory, StopTodo, StopLink } from "@/lib/types";
 import { CATEGORY_LABELS, newId } from "@/lib/types";
 import { searchPlaces, type NominatimResult } from "@/lib/nominatim";
 import { cn } from "@/components/ui/cn";
 
 interface StopDialogProps {
-  stop?: Stop | null; // null = create new
+  stop?: Stop | null;
   onSave: (stop: Stop) => void;
   onClose: () => void;
 }
@@ -44,6 +44,9 @@ export default function StopDialog({ stop, onSave, onClose }: StopDialogProps) {
   const [searchQuery, setSearchQuery] = useState(stop?.address ?? stop?.name ?? "");
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [newTodo, setNewTodo] = useState("");
+  const [newLinkTitle, setNewLinkTitle] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function set<K extends keyof Stop>(key: K, value: Stop[K]) {
@@ -75,16 +78,60 @@ export default function StopDialog({ stop, onSave, onClose }: StopDialogProps) {
     setResults([]);
   }
 
+  // ─── Todos ────────────────────────────────────────────────────────────────
+  function addTodo() {
+    if (!newTodo.trim()) return;
+    const todo: StopTodo = {
+      id: newId(),
+      text: newTodo.trim(),
+      isCompleted: false,
+      sortOrder: form.todos.length,
+    };
+    set("todos", [...form.todos, todo]);
+    setNewTodo("");
+  }
+
+  function toggleTodo(id: string) {
+    set("todos", form.todos.map((t) =>
+      t.id === id ? { ...t, isCompleted: !t.isCompleted } : t
+    ));
+  }
+
+  function deleteTodo(id: string) {
+    set("todos", form.todos.filter((t) => t.id !== id));
+  }
+
+  // ─── Links ────────────────────────────────────────────────────────────────
+  function addLink() {
+    if (!newLinkUrl.trim()) return;
+    const link: StopLink = {
+      id: newId(),
+      title: newLinkTitle.trim() || newLinkUrl.trim(),
+      url: newLinkUrl.trim(),
+      sortOrder: form.links.length,
+    };
+    set("links", [...form.links, link]);
+    setNewLinkTitle("");
+    setNewLinkUrl("");
+  }
+
+  function deleteLink(id: string) {
+    set("links", form.links.filter((l) => l.id !== id));
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
     onSave({ ...form, id: form.id || newId() });
   }
 
+  const isTransport = form.categoryRaw === "transport";
+  const isAccommodation = form.categoryRaw === "accommodation";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="font-semibold text-slate-800">
             {stop ? "Edit Stop" : "Add Stop"}
           </h2>
@@ -195,16 +242,124 @@ export default function StopDialog({ stop, onSave, onClose }: StopDialogProps) {
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Transport-specific fields */}
+          {isTransport && (
+            <div className="border border-blue-100 rounded-lg p-3 bg-blue-50 space-y-3">
+              <p className="text-xs font-semibold text-blue-700">Flight Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Airline</label>
+                  <input
+                    type="text"
+                    value={form.airline ?? ""}
+                    onChange={(e) => set("airline", e.target.value || undefined)}
+                    placeholder="e.g. Delta"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Flight #</label>
+                  <input
+                    type="text"
+                    value={form.flightNumber ?? ""}
+                    onChange={(e) => set("flightNumber", e.target.value || undefined)}
+                    placeholder="e.g. DL234"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">From (airport)</label>
+                  <input
+                    type="text"
+                    value={form.departureAirport ?? ""}
+                    onChange={(e) => set("departureAirport", e.target.value || undefined)}
+                    placeholder="e.g. JFK"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">To (airport)</label>
+                  <input
+                    type="text"
+                    value={form.arrivalAirport ?? ""}
+                    onChange={(e) => set("arrivalAirport", e.target.value || undefined)}
+                    placeholder="e.g. CDG"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Confirmation code</label>
+                <input
+                  type="text"
+                  value={form.confirmationCode ?? ""}
+                  onChange={(e) => set("confirmationCode", e.target.value || undefined)}
+                  placeholder="e.g. ABC123"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Accommodation-specific fields */}
+          {isAccommodation && (
+            <div className="border border-purple-100 rounded-lg p-3 bg-purple-50 space-y-3">
+              <p className="text-xs font-semibold text-purple-700">Accommodation Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Confirmation code</label>
+                  <input
+                    type="text"
+                    value={form.confirmationCode ?? ""}
+                    onChange={(e) => set("confirmationCode", e.target.value || undefined)}
+                    placeholder="e.g. HB123456"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Check-out date</label>
+                  <input
+                    type="date"
+                    value={form.checkOutDate ?? ""}
+                    onChange={(e) => set("checkOutDate", e.target.value || undefined)}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rating */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              rows={3}
-              placeholder="Any details…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-            />
+            <label className="block text-xs font-medium text-slate-600 mb-1">Rating</label>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => set("rating", form.rating === n ? 0 : n)}
+                  className="p-0.5"
+                >
+                  <Star
+                    className={cn(
+                      "w-5 h-5 transition-colors",
+                      n <= form.rating
+                        ? "text-yellow-400 fill-yellow-400"
+                        : "text-slate-200 hover:text-yellow-300"
+                    )}
+                  />
+                </button>
+              ))}
+              {form.rating > 0 && (
+                <button
+                  type="button"
+                  onClick={() => set("rating", 0)}
+                  className="ml-2 text-xs text-slate-400 hover:text-slate-600"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Website / Phone */}
@@ -230,8 +385,119 @@ export default function StopDialog({ stop, onSave, onClose }: StopDialogProps) {
             </div>
           </div>
 
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+              rows={3}
+              placeholder="Any details…"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            />
+          </div>
+
+          {/* Todos */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">To-do list</label>
+            {form.todos.length > 0 && (
+              <ul className="mb-2 space-y-1">
+                {form.todos.map((todo) => (
+                  <li key={todo.id} className="flex items-center gap-2 group">
+                    <input
+                      type="checkbox"
+                      checked={todo.isCompleted}
+                      onChange={() => toggleTodo(todo.id)}
+                      className="rounded"
+                    />
+                    <span className={cn("flex-1 text-sm", todo.isCompleted && "line-through text-slate-400")}>
+                      {todo.text}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteTodo(todo.id)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTodo}
+                onChange={(e) => setNewTodo(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTodo(); } }}
+                placeholder="Add a to-do…"
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                type="button"
+                onClick={addTodo}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Links */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Links</label>
+            {form.links.length > 0 && (
+              <ul className="mb-2 space-y-1">
+                {form.links.map((link) => (
+                  <li key={link.id} className="flex items-center gap-2 group">
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-sm text-blue-500 hover:underline truncate"
+                    >
+                      {link.title}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => deleteLink(link.id)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newLinkTitle}
+                onChange={(e) => setNewLinkTitle(e.target.value)}
+                placeholder="Title (optional)"
+                className="w-28 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <input
+                type="url"
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }}
+                placeholder="https://…"
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                type="button"
+                onClick={addLink}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
