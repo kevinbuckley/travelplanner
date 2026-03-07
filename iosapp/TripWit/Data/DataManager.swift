@@ -152,6 +152,13 @@ final class DataManager {
         trip.updatedAt = Date()
         try? context.save()
         SpotlightService.indexTrip(trip)
+        refreshWidget(for: trip)
+    }
+
+    private func refreshWidget(for trip: TripEntity) {
+        // Push the active (or most recent upcoming) trip to the widget
+        let active = fetchTrips().first(where: { $0.isActive }) ?? trip
+        WidgetDataStore.write(WidgetDataStore.buildData(from: active))
     }
 
     func deleteTrip(_ trip: TripEntity) {

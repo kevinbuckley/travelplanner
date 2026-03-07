@@ -15,6 +15,8 @@ targets:
       - TripWit
     dependencies:
       - package: TripCore
+      - target: TripWitWidget
+        embed: true
     entitlements:
       path: TripWit/TripWit.entitlements
       properties:
@@ -22,6 +24,8 @@ targets:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.kevinbuckley.travelplanner
+        com.apple.security.application-groups:
+          - group.com.kevinbuckley.travelplanner
     settings:
       base:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -43,6 +47,29 @@ targets:
         INFOPLIST_KEY_CFBundleShortVersionString: "1.2"
         MARKETING_VERSION: "1.2"
         CURRENT_PROJECT_VERSION: "87"
+  TripWitWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - TripWitWidget
+    entitlements:
+      path: TripWitWidget/TripWitWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.kevinbuckley.travelplanner
+    info:
+      path: TripWitWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kevinbuckley.travelplanner.widget
+        INFOPLIST_FILE: TripWitWidget/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: "TripWit"
+        DEVELOPMENT_TEAM: A6VYGLF4DB
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_STRICT_CONCURRENCY: complete
   TripWitTests:
     type: bundle.unit-test
     platform: iOS
