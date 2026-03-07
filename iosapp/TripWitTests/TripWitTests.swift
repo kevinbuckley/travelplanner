@@ -2943,4 +2943,40 @@ func oldStopTransferDecodes() throws {
     #expect(HandoffManager.stopID(from: activity) == nil)
 }
 
+// MARK: - Focus Filter
+
+@Test func focusStatusLocalizedNames() {
+    #expect(FocusTripStatus.active.localizedName   == "Active")
+    #expect(FocusTripStatus.upcoming.localizedName == "Upcoming")
+    #expect(FocusTripStatus.all.localizedName      == "All")
+}
+
+@Test func focusStatusRawValues() {
+    #expect(FocusTripStatus(rawValue: "active")   == .active)
+    #expect(FocusTripStatus(rawValue: "upcoming") == .upcoming)
+    #expect(FocusTripStatus(rawValue: "all")      == .all)
+    #expect(FocusTripStatus(rawValue: "bogus")    == nil)
+}
+
+@Test func focusFilterStoreRoundtrip() {
+    FocusFilterStore.write(status: .upcoming)
+    let read = FocusFilterStore.read()
+    #expect(read == .upcoming)
+    FocusFilterStore.clear()
+    #expect(FocusFilterStore.read() == .all)  // default
+}
+
+@Test func focusFilterStoreDefaultsToAll() {
+    FocusFilterStore.clear()
+    #expect(FocusFilterStore.read() == .all)
+}
+
+@Test func focusFilterStoreAllCases() {
+    for status in [FocusTripStatus.active, .upcoming, .all] {
+        FocusFilterStore.write(status: status)
+        #expect(FocusFilterStore.read() == status)
+    }
+    FocusFilterStore.clear()
+}
+
 } // end TripWitTests suite
