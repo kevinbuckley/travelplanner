@@ -9,9 +9,10 @@ import MapPanel from "@/components/layout/MapPanel";
 import { getTrips, createTrip, updateTrip, deleteTrip, insertTrip } from "@/lib/db";
 import type { Trip, Stop } from "@/lib/types";
 import { newId, nowISO } from "@/lib/types";
+import { Map } from "lucide-react";
 
 export default function AppPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, signIn } = useAuth();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
@@ -76,7 +77,6 @@ export default function AppPage() {
       createdAt: now,
       updatedAt: now,
     };
-    // Assign new IDs to all nested entities
     dupe.days = dupe.days.map((d: Trip["days"][0]) => ({
       ...d,
       id: newId(),
@@ -95,20 +95,16 @@ export default function AppPage() {
       id: newId(),
       items: l.items.map((i) => ({ ...i, id: newId() })),
     }));
-
     await insertTrip(dupe);
     setTrips((prev) => [dupe, ...prev]);
     setSelectedTripId(dupe.id);
   }, [user]);
 
-  // Debounced save with status indicator
   const handleUpdateTrip = useCallback(async (changes: Partial<Trip>) => {
     if (!selectedTripId) return;
-    // Optimistic update
     setTrips((prev) =>
       prev.map((t) => (t.id === selectedTripId ? { ...t, ...changes } : t))
     );
-    // Show saving indicator
     setSaveStatus("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -125,7 +121,6 @@ export default function AppPage() {
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // Cmd/Ctrl+N = new trip
       if ((e.metaKey || e.ctrlKey) && e.key === "n") {
         e.preventDefault();
         handleCreateTrip();
@@ -135,28 +130,67 @@ export default function AppPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleCreateTrip]);
 
+  // Auth loading
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-slate-400">Loading…</span>
+      <div className="h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg">
+            <span className="text-white text-lg">✈</span>
+          </div>
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     );
   }
 
-  // Not signed in
+  // Sign-in screen
   if (!user) {
     return (
-      <div className="h-screen flex flex-col">
-        <Header showAds={false} />
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
-          <div className="text-5xl">✈️</div>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-800 mb-2">Welcome to TripWit</h1>
-            <p className="text-slate-500 text-sm max-w-xs">
-              Sign in with Google to start planning your trips and access them from any device.
+      <div className="h-screen flex flex-col bg-[#0c111d]">
+        {/* Subtle top nav */}
+        <nav className="px-6 h-14 flex items-center justify-between border-b border-white/6 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
+              <span className="text-white text-sm">✈</span>
+            </div>
+            <span className="text-white font-semibold text-[15px]">TripWit</span>
+          </div>
+        </nav>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+          {/* Background glow */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-blue-600/15 rounded-full blur-[100px]" />
+          </div>
+
+          <div className="relative text-center max-w-sm">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto mb-6 shadow-[0_8px_32px_rgba(59,130,246,0.4)]">
+              <span className="text-3xl">✈️</span>
+            </div>
+
+            <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">
+              Welcome to TripWit
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Sign in to start planning your trips. Your itineraries, bookings, and expenses — all in one beautiful place.
+            </p>
+
+            <button
+              onClick={signIn}
+              className="inline-flex items-center gap-3 w-full justify-center px-5 py-3 bg-white text-slate-800 rounded-xl font-medium text-sm hover:bg-slate-100 transition-colors shadow-lg"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <p className="text-xs text-slate-600 mt-4">
+              Free forever · No credit card required
             </p>
           </div>
         </div>
@@ -164,12 +198,13 @@ export default function AppPage() {
     );
   }
 
+  // Trips loading
   if (tripsLoading) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-slate-400">Loading trips…</span>
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-slate-400">Loading your trips…</span>
         </div>
       </div>
     );
@@ -194,7 +229,7 @@ export default function AppPage() {
           onDuplicateTrip={handleDuplicateTrip}
         />
 
-        {/* Center: Trip detail */}
+        {/* Center: Trip detail or empty state */}
         {selectedTrip ? (
           <TripDetail
             trip={selectedTrip}
@@ -204,12 +239,14 @@ export default function AppPage() {
             selectedStopId={selectedStopId}
           />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-            <div className="text-5xl mb-4">🗺️</div>
-            <h2 className="text-lg font-semibold text-slate-700 mb-1">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-8 bg-slate-50">
+            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.07)] flex items-center justify-center text-3xl mb-4">
+              🗺️
+            </div>
+            <h2 className="text-lg font-semibold text-slate-800 mb-1.5">
               {trips.length === 0 ? "Plan your first adventure" : "Select a trip"}
             </h2>
-            <p className="text-sm text-slate-400 max-w-sm mb-4">
+            <p className="text-sm text-slate-400 max-w-xs mb-5 leading-relaxed">
               {trips.length === 0
                 ? "Create a trip to start building your itinerary with days, stops, bookings, and more."
                 : "Pick a trip from the sidebar to view and edit it."}
@@ -217,23 +254,25 @@ export default function AppPage() {
             {trips.length === 0 && (
               <button
                 onClick={handleCreateTrip}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
               >
-                Create Your First Trip
+                ✈️ Create Your First Trip
               </button>
             )}
           </div>
         )}
 
-        {/* Right: Map (collapsible) */}
-        {!mapCollapsed && (
-          <div className="w-96 shrink-0 border-l border-slate-200 relative">
+        {/* Right: Map panel (collapsible) */}
+        {!mapCollapsed ? (
+          <div className="w-96 shrink-0 border-l border-slate-200 relative bg-slate-100">
+            {/* Premium map collapse button */}
             <button
               onClick={() => setMapCollapsed(true)}
-              className="absolute top-2 left-2 z-[1000] bg-white rounded-md shadow-md px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors"
+              className="absolute top-3 left-3 z-[1000] flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 shadow-[0_1px_4px_rgba(0,0,0,0.12)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-all border border-slate-200/80"
               title="Hide map"
             >
-              ✕ Map
+              <Map className="w-3 h-3" />
+              <span>Hide map</span>
             </button>
             <MapPanel
               stops={mapStops}
@@ -241,14 +280,17 @@ export default function AppPage() {
               onSelectStop={setSelectedStopId}
             />
           </div>
-        )}
-        {mapCollapsed && (
+        ) : (
+          /* Slim expand tab */
           <button
             onClick={() => setMapCollapsed(false)}
-            className="shrink-0 w-10 border-l border-slate-200 flex items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors"
+            className="shrink-0 w-9 border-l border-slate-200 flex flex-col items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 transition-colors group"
             title="Show map"
           >
-            <span className="text-xs text-slate-500 [writing-mode:vertical-lr] rotate-180">🗺️ Map</span>
+            <Map className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <span className="text-[10px] text-slate-400 group-hover:text-slate-600 font-medium transition-colors [writing-mode:vertical-lr] rotate-180 tracking-wide">
+              Map
+            </span>
           </button>
         )}
       </div>
